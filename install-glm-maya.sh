@@ -1684,14 +1684,18 @@ effort_level() {
 # /health), unless a holder of the API key saved one in the settings of the web page.  Maya
 # keeps that beside the configuration (maya-<name>.shared-settings.json) and reports it in
 # GET /settings; it takes the place of the configuration's until it is cleared there.  Only
-# warnings: what the server reports here has not been seen on real hardware.
+# warnings, also when /settings cannot be read: what the server reports here has not been
+# seen on real hardware.
 check_thinking() {
   local GLMMAYAINS_base=$1 GLMMAYAINS_auth=$2 GLMMAYAINS_out GLMMAYAINS_shared
   if [[ -n $GLMMAYAINS_EFFORT && $(effort_level "$GLMMAYAINS_EFFORT") != "${GLMMAYAINS_VAL[THINKING]}" ]]; then
     warn "Maya reports the thinking level '$GLMMAYAINS_EFFORT', not '${GLMMAYAINS_VAL[THINKING]}' as set with --thinking (see reasoning_effort in $(maya_config))"
   fi
   GLMMAYAINS_out=$(curl -s --fail --max-time 20 -H "$GLMMAYAINS_auth" "$GLMMAYAINS_base/settings" 2>/dev/null || true)
-  [[ -n $GLMMAYAINS_out ]] || return 0
+  if [[ -z $GLMMAYAINS_out ]]; then
+    warn "cannot read $GLMMAYAINS_base/settings: not checked whether a thinking level saved in the settings of the web page takes the place of --thinking ${GLMMAYAINS_VAL[THINKING]}"
+    return 0
+  fi
   GLMMAYAINS_shared=$(json_get - defaults reasoning_effort <<<"$GLMMAYAINS_out")
   if [[ -n $GLMMAYAINS_shared && $(effort_level "$GLMMAYAINS_shared") != "${GLMMAYAINS_VAL[THINKING]}" ]]; then
     warn "the thinking level '$GLMMAYAINS_shared' was saved in the settings of the web page and takes the place of --thinking ${GLMMAYAINS_VAL[THINKING]} for requests that name none; clear it in the page's settings (with the API key), or delete $(maya_tree)/$(maya_name).shared-settings.json and restart $GLMMAYAINS_UNIT"
